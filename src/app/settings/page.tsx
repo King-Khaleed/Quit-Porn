@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState } from "react";
 import Nav from "@/components/Nav";
 import { useAuth } from "@/hooks/useAuth";
 import { useStreak } from "@/hooks/useStreak";
@@ -8,8 +8,9 @@ import { subscribeToPush } from "@/lib/push";
 import { techniques } from "@/data/techniques";
 import ExportFlow from "@/components/ExportFlow";
 import ImportFlow from "@/components/ImportFlow";
-import { IconCheck, IconAlert } from "@/components/icons";
-import { encrypt } from "@/lib/crypto";
+import { IconAlert } from "@/components/icons";
+import { getFeedbackPrefs, setFeedbackPrefs, tapFeedback, successFeedback } from "@/lib/feedback";
+import { useToast } from "@/components/ToastProvider";
 
 const STORAGE_KEYS = [
   "qp_streak",
@@ -41,11 +42,18 @@ function getiOSPushSupport(): "supported" | "unsupported" | "unknown" {
 
 export default function SettingsPage() {
   const { session, logout } = useAuth();
-  const { streak, reset } = useStreak();
-  const [pushEnabled, setPushEnabled] = useState(false);
-  const [pushSupported, setPushSupported] = useState(true);
-  const [domain, setDomain] = useState("");
-  const [blocklist, setBlocklist] = useState<string[]>([]);
+  const { streak } = useStreak();
+  const { showToast } = useToast();
+  const [feedbackPrefs, setFeedbackPrefsState] = useState(getFeedbackPrefs);
+  const [pushEnabled, setPushEnabled] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return Notification.permission === "granted";
+  });
+  const [pushSupported] = useState(() => {
+    if (typeof window === "undefined") return true;
+    if (isIOS() && getiOSPushSupport() === "unsupported") return false;
+    return "Notification" in window && "serviceWorker" in navigator;
+  });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -54,43 +62,9 @@ export default function SettingsPage() {
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = localStorage.getItem("qp_blocklist");
-    if (stored) {
-      try { setBlocklist(JSON.parse(stored)); } catch {}
-    }
-    if ("Notification" in window && "serviceWorker" in navigator) {
-      setPushSupported(true);
-      if (Notification.permission === "granted") setPushEnabled(true);
-    }
-    if (isIOS() && getiOSPushSupport() === "unsupported") {
-      setPushSupported(false);
-    }
-  }, []);
-
-  const updateBlocklist = useCallback((newList: string[]) => {
-    setBlocklist(newList);
-    localStorage.setItem("qp_blocklist", JSON.stringify(newList));
-    if (navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({
-        type: "UPDATE_BLOCKLIST",
-        blocklist: newList,
-      });
-    }
-  }, []);
-
-  const addDomain = useCallback(() => {
-    const d = domain.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "");
-    if (!d || blocklist.includes(d)) return;
-    updateBlocklist([...blocklist, d]);
-    setDomain("");
-  }, [domain, blocklist, updateBlocklist]);
-
-  const removeDomain = useCallback((d: string) => {
-    updateBlocklist(blocklist.filter((x) => x !== d));
-  }, [blocklist, updateBlocklist]);
+  const [gdprExporting, setGdprExporting] = useState(false);
+  const [showDeleteAccountConfirm, setShowDeleteAccountConfirm] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   const handleExportJournal = async () => {
     setExporting(true);
@@ -136,7 +110,6 @@ export default function SettingsPage() {
   const handleDeleteAllData = async () => {
     setDeleting(true);
     try {
-      const { openDB } = await import("idb");
       const db = await indexedDB.databases?.();
       if (db) {
         for (const d of db) {
@@ -163,6 +136,40 @@ export default function SettingsPage() {
     if (ok) setPushEnabled(true);
   };
 
+  const handleGdprExport = async () => {
+    setGdprExporting(true);
+    setMessage(null);
+    try {
+      const { exportGdprData } = await import("@/lib/gdpr");
+      await exportGdprData();
+      setMessage({ text: "GDPR data export downloaded.", type: "success" });
+    } catch (err) {
+      setMessage({ text: "Export failed: " + (err instanceof Error ? err.message : "Unknown error"), type: "error" });
+    } finally {
+      setGdprExporting(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeletingAccount(true);
+    setMessage(null);
+    try {
+      const { deleteRemoteAccount, deleteAllLocalData } = await import("@/lib/gdpr");
+      const result = await deleteRemoteAccount();
+      await deleteAllLocalData();
+      setMessage({
+        text: result.deleted.length > 0
+          ? "Account deleted. Redirecting..."
+          : "Local data cleared. Redirecting...",
+        type: "success",
+      });
+      window.location.reload();
+    } catch (err) {
+      setMessage({ text: "Delete failed: " + (err instanceof Error ? err.message : "Unknown error"), type: "error" });
+      setDeletingAccount(false);
+    }
+  };
+
   const handleSubmitFeedback = async () => {
     const text = feedbackText.trim();
     if (!text) return;
@@ -172,7 +179,8 @@ export default function SettingsPage() {
       const supabase = getSupabase();
       await supabase.from("user_feedback").insert({ feedback: text });
       setFeedbackText("");
-      setMessage({ text: "Feedback sent. Thank you!", type: "success" });
+      successFeedback();
+      showToast("Feedback sent — thank you!", "success");
     } catch {
       setMessage({ text: "Failed to send feedback. Try again.", type: "error" });
     } finally {
@@ -248,48 +256,55 @@ export default function SettingsPage() {
           )}
         </div>
 
-        {/* Custom Blocklist */}
-        <div className="mt-4 bg-bg-surface border border-border-primary rounded-xl p-4 animate-fade-in-up stagger-1 space-y-3">
-          <h2 className="text-sm font-heading font-semibold text-text-primary">Content Blocking</h2>
-          <p className="text-xs text-text-tertiary">
-            Add custom domains to block. {blocklist.length + 94} total domains blocked.
-          </p>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={domain}
-              onChange={(e) => setDomain(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && addDomain()}
-              placeholder="example.com"
-              className="flex-1 bg-bg-elevated border border-border-primary rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary/60 focus:outline-none focus:ring-2 focus:ring-accent/40"
-            />
+        {/* Interaction Preferences */}
+        <div className="mt-4 card-premium p-4 animate-fade-in-up stagger-2 space-y-3">
+          <h2 className="text-sm font-heading font-semibold text-text-primary">Interactions</h2>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-text-secondary">Tap sounds</p>
+              <p className="text-xs text-text-tertiary">Subtle audio on button taps</p>
+            </div>
             <button
-              onClick={addDomain}
-              disabled={!domain.trim()}
-              className="px-3 py-2 rounded-lg text-xs font-medium bg-accent text-black hover:bg-accent-hover disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              type="button"
+              onClick={() => {
+                const next = setFeedbackPrefs({ sound: !feedbackPrefs.sound });
+                setFeedbackPrefsState(next);
+                if (next.sound) tapFeedback();
+              }}
+              className={`relative w-11 h-6 rounded-full transition-all duration-200 ${
+                feedbackPrefs.sound ? "bg-accent" : "bg-bg-elevated"
+              }`}
             >
-              Add
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-all duration-200 ${
+                feedbackPrefs.sound ? "translate-x-5" : ""
+              }`} />
             </button>
           </div>
-          {blocklist.length > 0 && (
-            <div className="space-y-1 max-h-32 overflow-y-auto">
-              {blocklist.map((d) => (
-                <div key={d} className="flex items-center justify-between bg-bg-elevated rounded-lg px-3 py-1.5">
-                  <span className="text-xs text-text-secondary">{d}</span>
-                  <button
-                    onClick={() => removeDomain(d)}
-                    className="text-xs text-danger/70 hover:text-danger transition-colors"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-text-secondary">Haptic feedback</p>
+              <p className="text-xs text-text-tertiary">Light vibration on actions</p>
             </div>
-          )}
+            <button
+              type="button"
+              onClick={() => {
+                const next = setFeedbackPrefs({ haptics: !feedbackPrefs.haptics });
+                setFeedbackPrefsState(next);
+                tapFeedback();
+              }}
+              className={`relative w-11 h-6 rounded-full transition-all duration-200 ${
+                feedbackPrefs.haptics ? "bg-accent" : "bg-bg-elevated"
+              }`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-all duration-200 ${
+                feedbackPrefs.haptics ? "translate-x-5" : ""
+              }`} />
+            </button>
+          </div>
         </div>
 
         {/* Data Management */}
-        <div className="mt-4 bg-bg-surface border border-border-primary rounded-xl p-4 animate-fade-in-up stagger-2 space-y-3">
+        <div className="mt-4 card-premium p-4 animate-fade-in-up stagger-2 space-y-3">
           <h2 className="text-sm font-heading font-semibold text-text-primary">Data Management</h2>
           <div className="flex flex-col gap-2">
             <button
@@ -336,6 +351,21 @@ export default function SettingsPage() {
             <span className="text-[10px] text-text-tertiary bg-bg-elevated px-2 py-1 rounded-md">
               Free tier
             </span>
+          </div>
+          <div className="flex flex-col gap-2 pt-1">
+            <button
+              onClick={handleGdprExport}
+              disabled={gdprExporting}
+              className="w-full py-2.5 rounded-xl text-sm font-medium bg-bg-elevated text-text-secondary hover:bg-bg-surface-hover border border-border-primary disabled:opacity-40 transition-all"
+            >
+              {gdprExporting ? "Exporting..." : "Export My Data (GDPR)"}
+            </button>
+            <button
+              onClick={() => setShowDeleteAccountConfirm(true)}
+              className="w-full py-2.5 rounded-xl text-sm font-medium bg-danger/10 text-danger border border-danger/20 hover:bg-danger/20 transition-all"
+            >
+              Delete Account
+            </button>
           </div>
         </div>
 
@@ -412,6 +442,39 @@ export default function SettingsPage() {
                 className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-danger text-white hover:opacity-90 disabled:opacity-50 transition-all"
               >
                 {deleting ? "Deleting..." : "Delete Everything"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteAccountConfirm && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center px-6 animate-fade-in">
+          <div className="bg-bg-surface border border-border-primary rounded-2xl max-w-sm w-full p-6 animate-scale-in space-y-4">
+            <div className="text-center">
+              <div className="w-12 h-12 rounded-full bg-danger/10 border border-danger/20 flex items-center justify-center mx-auto mb-3">
+                <IconAlert size={24} className="text-danger" />
+              </div>
+              <h2 className="text-lg font-heading font-semibold text-text-primary">
+                Delete Account?
+              </h2>
+              <p className="text-sm text-text-secondary mt-1">
+                This will delete your account, push subscriptions, and all local data. This cannot be undone.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteAccountConfirm(false)}
+                className="flex-1 py-2.5 rounded-xl text-sm bg-bg-elevated text-text-secondary hover:bg-bg-surface-hover transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deletingAccount}
+                className="flex-1 py-2.5 rounded-xl text-sm font-medium bg-danger text-white hover:opacity-90 disabled:opacity-50 transition-all"
+              >
+                {deletingAccount ? "Deleting..." : "Delete Account"}
               </button>
             </div>
           </div>

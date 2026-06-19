@@ -67,7 +67,7 @@ function WelcomeScreen({ onStart }: { onStart: (message: string) => void }) {
             className="w-full text-left bg-bg-surface border border-border-primary rounded-xl px-4 py-2.5 text-sm text-text-secondary hover:bg-bg-surface-hover hover:text-text-primary transition-all animate-fade-in-up"
             style={{ animationDelay: `${i * 0.08}s` }}
           >
-            "{s}"
+            &ldquo;{s}&rdquo;
           </button>
         ))}
       </div>
@@ -80,24 +80,19 @@ interface Props {
 }
 
 export default function AiCoach({ onClose }: Props) {
-  const [session, setSession] = useState<CoachSession | null>(null);
+  const [session, setSession] = useState<CoachSession | null>(() => {
+    const existing = loadSession();
+    if (existing && existing.messages.length > 0) return existing;
+    return createNewSession();
+  });
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [streamingContent, setStreamingContent] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [remaining, setRemaining] = useState(getRemainingMessages());
-  const [premium, setPremium] = useState(isPremium());
+  const [premium] = useState(isPremium());
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => {
-    const existing = loadSession();
-    if (existing && existing.messages.length > 0) {
-      setSession(existing);
-    } else {
-      setSession(createNewSession());
-    }
-  }, []);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -157,8 +152,8 @@ export default function AiCoach({ onClose }: Props) {
           timestamp: new Date().toISOString(),
         };
         addMessage(assistantMsg);
-      } catch (err: any) {
-        setError(err.message || "Something went wrong. Please try again.");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
       } finally {
         setLoading(false);
         setStreamingContent("");
@@ -298,7 +293,7 @@ export default function AiCoach({ onClose }: Props) {
         {!premium && remaining <= 0 && !hasMessages && (
           <div className="bg-accent-subtle/10 border border-accent/10 rounded-xl px-4 py-3 mb-3 text-center">
             <p className="text-xs text-text-secondary leading-relaxed">
-              You've used all free messages today.{" "}
+              You&apos;ve used all free messages today.{" "}
               <a href="/premium" className="text-accent hover:text-accent-hover">
                 Upgrade to Premium
               </a>{" "}

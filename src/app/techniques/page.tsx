@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import TechniqueCard from "@/components/TechniqueCard";
 import Nav from "@/components/Nav";
 import { useAuth } from "@/hooks/useAuth";

@@ -35,7 +35,7 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: "*",
         allow: "/",
-        disallow: ["/journal", "/settings", "/insights", "/autopsy", "/intercept", "/api/"],
+        disallow: ["/journal", "/settings", "/insights", "/autopsy", "/api/"],
       },
     ],
     sitemap: `${baseUrl}/sitemap.xml`,

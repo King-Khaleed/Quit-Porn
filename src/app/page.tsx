@@ -12,7 +12,6 @@ import PatternCard from "@/components/PatternCard";
 import Timeline from "@/components/Timeline";
 import InstallBanner from "@/components/InstallBanner";
 import AiCoach from "@/components/AiCoach";
-import PreCommitScreen, { getFocusModeSuggestions as getRiskSuggestions, isHighRiskWindow } from "@/components/PreCommitScreen";
 import Onboarding from "@/components/Onboarding";
 import { useStreak } from "@/hooks/useStreak";
 import { usePatterns } from "@/hooks/usePatterns";
@@ -21,40 +20,39 @@ import { saveUrgeLog, getUrgeTrend, getCommitStreak, saveCheckin, loadCheckins, 
 import { addFeedItem } from "@/lib/feed";
 import { requestPersistentStorage } from "@/lib/db";
 import { sendNotification } from "@/lib/push";
+import { tapFeedback, successFeedback } from "@/lib/feedback";
 import { IconLogo, IconCheck } from "@/components/icons";
 
 export default function HomePage() {
   const { session, loading: authLoading, loginAnonymously } = useAuth();
-  const { streak, handleRelapse, handleIncrement } = useStreak();
+  const { streak, handleIncrement } = useStreak();
   const { riskScore, patternAlert, analyze } = usePatterns();
-  const [greeting, setGreeting] = useState("");
+  const [greeting] = useState(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Morning";
+    if (hour < 17) return "Afternoon";
+    return "Evening";
+  });
   const [urge, setUrge] = useState(0);
   const [showSession, setShowSession] = useState(false);
   const [showRelapseRecovery, setShowRelapseRecovery] = useState(false);
   const [showCoach, setShowCoach] = useState(false);
   const [lastLog, setLastLog] = useState<UrgeLog | null>(null);
-  const [trend, setTrend] = useState(getUrgeTrend());
-  const [committedToday, setCommittedToday] = useState(false);
-  const [shareDirectLog, setShareDirectLog] = useState(false);
-  const [focusMode, setFocusMode] = useState<{ active: boolean; until: string | null }>({ active: false, until: null });
-  const [showFocusBanner, setShowFocusBanner] = useState(false);
-  const [showOnboarding, setShowOnboarding] = useState(false);
-
-  useEffect(() => {
-    requestPersistentStorage();
-    const hour = new Date().getHours();
-    if (hour < 12) setGreeting("Morning");
-    else if (hour < 17) setGreeting("Afternoon");
-    else setGreeting("Evening");
-
-    setTrend(getUrgeTrend());
-
-    const done = localStorage.getItem("qp_onboarding_done");
-    if (!done) setShowOnboarding(true);
-
+  const [trend, setTrend] = useState(() => getUrgeTrend());
+  const [committedToday, setCommittedToday] = useState(() => {
+    if (typeof window === "undefined") return false;
     const today = new Date().toISOString().split("T")[0];
     const checkins = loadCheckins();
-    setCommittedToday(checkins.some((c: any) => c.date === today && c.committed));
+    return checkins.some((c: { date: string; committed: boolean }) => c.date === today && c.committed);
+  });
+  const [shareDirectLog, setShareDirectLog] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return !localStorage.getItem("qp_onboarding_done");
+  });
+
+  useEffect(() => {
+    requestPersistentStorage().catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -65,41 +63,7 @@ export default function HomePage() {
         localStorage.setItem(sentKey, "1");
       }
     }
-  }, [streak.current]);
-
-  useEffect(() => {
-    const stored = localStorage.getItem("qp_focus_mode");
-    if (stored) {
-      try {
-        const fm = JSON.parse(stored);
-        if (fm.active && fm.until && new Date(fm.until) > new Date()) {
-          setFocusMode(fm);
-          setShowFocusBanner(true);
-        } else {
-          localStorage.removeItem("qp_focus_mode");
-        }
-      } catch {}
-    }
-
-    const risks = getRiskSuggestions();
-    if (risks.length > 0 && !focusMode.active) {
-      setShowFocusBanner(true);
-    }
-  }, []);
-
-  const handleEnterFocusMode = useCallback((hours: number) => {
-    const until = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
-    const fm = { active: true, until };
-    localStorage.setItem("qp_focus_mode", JSON.stringify(fm));
-    setFocusMode(fm);
-    setShowFocusBanner(true);
-  }, []);
-
-  const handleExitFocusMode = useCallback(() => {
-    localStorage.removeItem("qp_focus_mode");
-    setFocusMode({ active: false, until: null });
-    setShowFocusBanner(false);
-  }, []);
+  }, [streak]);
 
   const handleUrgeSelect = (value: number) => {
     setUrge(value);
@@ -109,11 +73,10 @@ export default function HomePage() {
       const log: UrgeLog = {
         intensity: value,
         timestamp: new Date().toISOString(),
-        mood: "calm",
       };
       saveUrgeLog(log);
       handleIncrement();
-      analyze("calm");
+      analyze("");
       setLastLog(log);
       setShareDirectLog(false);
     }
@@ -125,7 +88,7 @@ export default function HomePage() {
     if (log.intensityAfter && log.intensityAfter < log.intensity) {
       handleIncrement();
     }
-    analyze(log.mood || "calm");
+    analyze(log.mood || "");
     setTrend(getUrgeTrend());
     setUrge(0);
   };
@@ -136,6 +99,7 @@ export default function HomePage() {
     saveCheckin({ date: today, committed: true, completed: false });
     setCommittedToday(true);
     setCommitStreak(currentStreak + 1);
+    successFeedback();
   };
 
   const handleDirectShare = useCallback(() => {
@@ -222,61 +186,6 @@ export default function HomePage() {
           <PatternCard />
         </div>
 
-        {/* Focus Mode Banner */}
-        {showFocusBanner && (
-          <div className="mt-4 bg-accent-subtle/30 border border-accent/20 rounded-xl p-4 animate-fade-in space-y-3">
-            <div className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-lg bg-accent/10 border border-accent/20 flex items-center justify-center shrink-0">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-accent">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                </svg>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-text-primary">
-                  {focusMode.active ? "Focus Mode Active" : "High-Risk Window"}
-                </p>
-                <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">
-                  {focusMode.active
-                    ? `Blocked sites will trigger an intervention. Active until ${new Date(focusMode.until || "").toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}.`
-                    : getRiskSuggestions().join(" ") + " Blocked sites will show an intervention."}
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-2">
-              {focusMode.active ? (
-                <button
-                  onClick={handleExitFocusMode}
-                  className="flex-1 py-2 rounded-lg text-xs font-medium bg-bg-elevated text-text-secondary hover:bg-bg-surface-hover border border-border-primary transition-all"
-                >
-                  Exit Focus Mode
-                </button>
-              ) : (
-                <>
-                  <button
-                    onClick={() => handleEnterFocusMode(1)}
-                    className="flex-1 py-2 rounded-lg text-xs font-medium bg-accent/10 text-accent border border-accent/20 hover:bg-accent/20 transition-all"
-                  >
-                    Focus 1h
-                  </button>
-                  <button
-                    onClick={() => handleEnterFocusMode(4)}
-                    className="flex-1 py-2 rounded-lg text-xs font-medium bg-accent/10 text-accent border border-accent/20 hover:bg-accent/20 transition-all"
-                  >
-                    Focus 4h
-                  </button>
-                </>
-              )}
-              <button
-                onClick={() => setShowFocusBanner(false)}
-                className="px-3 py-2 rounded-lg text-xs text-text-tertiary hover:text-text-secondary transition-colors"
-              >
-                Dismiss
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Urge Dial — the new centerpiece */}
         <div className="mt-5">
           <UrgeDial
@@ -311,7 +220,7 @@ export default function HomePage() {
         )}
         {committedToday && (
           <p className="mt-3 text-xs text-accent text-center animate-fade-in">
-            Today's commitment logged. You've got this.
+            Today&apos;s commitment logged. You&apos;ve got this.
           </p>
         )}
 
@@ -387,27 +296,12 @@ export default function HomePage() {
               <p className="text-xs font-medium text-text-primary">Techniques</p>
               <p className="text-[10px] text-text-tertiary mt-0.5">60-sec interventions</p>
             </a>
-            <button
-              onClick={() => focusMode.active ? handleExitFocusMode() : handleEnterFocusMode(1)}
-              className={`rounded-xl px-3 py-3 text-left transition-all ${
-                focusMode.active
-                  ? "bg-accent-subtle/30 border border-accent/30"
-                  : "bg-bg-surface border border-border-primary hover:bg-bg-surface-hover"
-              }`}
-            >
-              <p className={`text-xs font-medium ${focusMode.active ? "text-accent" : "text-text-primary"}`}>
-                {focusMode.active ? "Focus Mode On" : "Focus Mode"}
-              </p>
-              <p className="text-[10px] text-text-tertiary mt-0.5">
-                {focusMode.active ? "Active — sites intercepted" : "Pre-commit intervention"}
-              </p>
-            </button>
             <a
               href="/settings"
               className="bg-bg-surface border border-border-primary rounded-xl px-3 py-3 hover:bg-bg-surface-hover transition-all"
             >
               <p className="text-xs font-medium text-text-primary">Settings</p>
-              <p className="text-[10px] text-text-tertiary mt-0.5">Blocklist & backup</p>
+              <p className="text-[10px] text-text-tertiary mt-0.5">Backup & data</p>
             </a>
           </div>
         </div>

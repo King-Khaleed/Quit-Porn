@@ -47,8 +47,8 @@ export function useAuth() {
       const data = await signInAnonymously();
       setSession(data.session);
       if (data.session) cacheAuthStatus(true);
-    } catch (err: any) {
-      setError(err.message || "Failed to sign in");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to sign in");
     } finally {
       setLoading(false);
     }
@@ -59,8 +59,8 @@ export function useAuth() {
     try {
       await registerPasskey();
       return true;
-    } catch (err: any) {
-      setError(err.message || "Failed to setup passkey");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to setup passkey");
       return false;
     }
   }, []);

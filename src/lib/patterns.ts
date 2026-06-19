@@ -1,4 +1,4 @@
-import { getTechniqueLogs, getLocalJournalEntries, getSetting } from "./db";
+import { getLocalJournalEntries } from "./db";
 
 export interface JournalEntry {
   id?: number;
@@ -61,10 +61,8 @@ export function getContextHint(): { timeBlock: string; dayOfWeek: number; dayNam
   };
 }
 
-export async function analyzePatterns(mood: string): Promise<PatternAlert | null> {
-  const context = getContextHint();
+export async function analyzePatterns(): Promise<PatternAlert | null> {
   const entries = await getLocalJournalEntries();
-  const logs = await getTechniqueLogs();
 
   const streak = loadStreakSimple();
   const relapseDateSet = new Set(streak.relapseDates || []);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { loadFeed, type FeedItem } from "@/lib/feed";
 import { getTechniqueById } from "@/data/techniques";
 
@@ -44,15 +44,12 @@ function FeedRow({ item }: { item: FeedItem }) {
 
 export default function UrgeFeed() {
   const [duration, setDuration] = useState<Duration>(1);
-  const [items, setItems] = useState<FeedItem[]>([]);
-
-  useEffect(() => {
-    setItems(loadFeed());
-  }, []);
+  const [items] = useState(() => loadFeed());
+  const [now] = useState(Date.now);
 
   const filtered = items.filter((i) => {
     if (duration === 1) {
-      return new Date(i.timestamp).getTime() > Date.now() - 86400000;
+      return new Date(i.timestamp).getTime() > now - 86400000;
     }
     return true;
   });

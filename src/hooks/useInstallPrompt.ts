@@ -2,6 +2,11 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
+
 interface InstallPromptState {
   canInstall: boolean;
   isInstalled: boolean;
@@ -12,19 +17,22 @@ interface InstallPromptState {
 
 export function useInstallPrompt(): InstallPromptState {
   const [canInstall, setCanInstall] = useState(false);
-  const [isInstalled, setIsInstalled] = useState(false);
-  const deferredPrompt = useRef<any>(null);
+  const [isInstalled, setIsInstalled] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const mediaQuery = window.matchMedia("(display-mode: standalone)");
+    return mediaQuery.matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  });
+  const deferredPrompt = useRef<BeforeInstallPromptEvent | null>(null);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(display-mode: standalone)");
-    setIsInstalled(mediaQuery.matches || (window.navigator as any).standalone === true);
 
     const handler = (e: MediaQueryListEvent) => setIsInstalled(e.matches);
     mediaQuery.addEventListener("change", handler);
 
     const onBeforeInstall = (e: Event) => {
       e.preventDefault();
-      deferredPrompt.current = e;
+      deferredPrompt.current = e as BeforeInstallPromptEvent;
       setCanInstall(true);
     };
 

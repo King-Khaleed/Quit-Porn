@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { techniques, type Technique } from "@/data/techniques";
 import { saveUrgeLog, type UrgeLog } from "@/lib/urgeTracking";
 import { addFeedItem } from "@/lib/feed";
@@ -12,6 +12,21 @@ interface Props {
 }
 
 type Phase = "breathe" | "choose" | "doing" | "reflect" | "done";
+type BreathingPhase = "inhale" | "hold" | "exhale" | "wait";
+
+const BREATHING_DURATIONS: Record<BreathingPhase, number> = {
+  inhale: 4,
+  hold: 4,
+  exhale: 4,
+  wait: 2,
+};
+
+const BREATHING_NEXT: Record<BreathingPhase, BreathingPhase> = {
+  inhale: "hold",
+  hold: "exhale",
+  exhale: "wait",
+  wait: "inhale",
+};
 
 function getRecommendedTechnique(intensity: number, mood?: string): Technique {
   const urgent = techniques.filter((t) => t.bestFor.includes("urgent"));
@@ -42,15 +57,20 @@ function BreathingPhase({ onDone }: { onDone: () => void }) {
   const [phase, setPhase] = useState<"inhale" | "hold" | "exhale" | "wait">("inhale");
   const [count, setCount] = useState(4);
   const phaseRef = useRef<"inhale" | "hold" | "exhale" | "wait">("inhale");
-  const startRef = useRef(Date.now());
+  const startRef = useRef(0);
   const roundsRef = useRef(0);
   const onDoneRef = useRef(onDone);
-  onDoneRef.current = onDone;
 
-  const DURATIONS: Record<string, number> = { inhale: 4, hold: 4, exhale: 4, wait: 2 };
-  const NEXT: Record<string, "inhale" | "hold" | "exhale" | "wait"> = {
-    inhale: "hold", hold: "exhale", exhale: "wait", wait: "inhale",
-  };
+  useEffect(() => {
+    startRef.current = Date.now();
+  }, []);
+
+  useEffect(() => {
+    onDoneRef.current = onDone;
+  }, [onDone]);
+
+  const DURATIONS = BREATHING_DURATIONS;
+  const NEXT = BREATHING_NEXT;
 
   useEffect(() => {
     const TICK_MS = 200;
@@ -78,7 +98,7 @@ function BreathingPhase({ onDone }: { onDone: () => void }) {
     }, TICK_MS);
 
     return () => clearInterval(timer);
-  }, []);
+  }, [DURATIONS, NEXT]);
 
   const circleSize = 160 + (
     phase === "inhale" ? count * 8
@@ -161,15 +181,11 @@ function TechniquePhase({
 
 export default function MicroSession({ initialIntensity, onComplete, onDismiss }: Props) {
   const [phase, setPhase] = useState<Phase>("breathe");
-  const [urgeBefore, setUrgeBefore] = useState(initialIntensity);
+  const [urgeBefore] = useState(initialIntensity);
   const [urgeAfter, setUrgeAfter] = useState(0);
   const [mood, setMood] = useState("");
-  const [technique, setTechnique] = useState<Technique | null>(null);
+  const [technique, setTechnique] = useState<Technique | null>(() => getRecommendedTechnique(initialIntensity));
   const [shareToFeed, setShareToFeed] = useState(false);
-
-  useEffect(() => {
-    setTechnique(getRecommendedTechnique(initialIntensity));
-  }, [initialIntensity]);
 
   const handleBreatheDone = useCallback(() => setPhase("choose"), []);
   const handleTechniqueDone = useCallback(() => setPhase("reflect"), []);

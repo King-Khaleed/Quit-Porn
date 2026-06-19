@@ -92,11 +92,11 @@ Use warm, non-judgmental language. Never use shame language. Never say "you fail
       const analysis = data.choices?.[0]?.message?.content || "Reflecting on your patterns is a sign of strength. Be kind to yourself today.";
       setResult({ analysis, loading: false, error: null });
       onComplete(analysis);
-    } catch (err: any) {
+    } catch (err) {
       setResult({
         analysis: "",
         loading: false,
-        error: err.message || "Something went wrong. Your reflection is still valuable.",
+        error: err instanceof Error ? err.message : "Something went wrong. Your reflection is still valuable.",
       });
     }
   };

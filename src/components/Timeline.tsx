@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { loadUrgeLogs, type UrgeLog } from "@/lib/urgeTracking";
+import { useState } from "react";
+import { loadUrgeLogs } from "@/lib/urgeTracking";
 
 interface DayData {
   date: string;
@@ -26,9 +26,7 @@ function getLabelForIntensity(intensity: number): string {
 }
 
 export default function Timeline() {
-  const [days, setDays] = useState<DayData[]>([]);
-
-  useEffect(() => {
+  const [days] = useState<DayData[]>(() => {
     const logs = loadUrgeLogs();
     const now = new Date();
     const result: DayData[] = [];
@@ -59,8 +57,8 @@ export default function Timeline() {
       }
     }
 
-    setDays(result);
-  }, []);
+    return result;
+  });
 
   if (days.length === 0) return null;
 

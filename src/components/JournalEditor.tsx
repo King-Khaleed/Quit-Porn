@@ -58,7 +58,7 @@ export default function JournalEditor({ onSave, saving }: Props) {
 
       <div>
         <label className="block text-sm font-medium text-text-secondary mb-2">
-          What's on your mind?
+          What&apos;s on your mind?
         </label>
         <textarea
           value={text}

@@ -1,4 +1,5 @@
-const CACHE_NAME = "quitporn-v1";
+const CACHE_NAME = "quitporn-v3";
+const MAX_CACHE_SIZE = 50 * 1024 * 1024;
 const STATIC_ASSETS = [
   "/",
   "/manifest.json",
@@ -9,79 +10,70 @@ const STATIC_ASSETS = [
   "/settings",
   "/premium",
   "/install",
-  "/intercept",
 ];
 
-const DEFAULT_BLOCKLIST = [
-  "pornhub.com",
-  "xvideos.com",
-  "xnxx.com",
-  "xhamster.com",
-  "redtube.com",
-  "youporn.com",
-  "onlyfans.com",
-  "chaturbate.com",
-  "stripchat.com",
-  "livejasmin.com",
-  "omegle.com",
-  "chatrandom.com",
-  "chatroulette.com",
-];
-
-let userBlocklist = [];
+async function enforceCacheLimit() {
+  const cache = await caches.open(CACHE_NAME);
+  const keys = await cache.keys();
+  let totalSize = 0;
+  const entries = [];
+  for (const request of keys) {
+    const response = await cache.match(request);
+    if (response) {
+      const clone = response.clone();
+      const blob = await clone.blob();
+      totalSize += blob.size;
+      entries.push({ size: blob.size, request });
+    }
+  }
+  if (totalSize > MAX_CACHE_SIZE) {
+    entries.sort((a, b) => a.size - b.size);
+    while (totalSize > MAX_CACHE_SIZE && entries.length > STATIC_ASSETS.length) {
+      const entry = entries.shift();
+      if (entry) {
+        const pathname = new URL(entry.request.url).pathname;
+        if (!STATIC_ASSETS.includes(pathname)) {
+          await cache.delete(entry.request);
+          totalSize -= entry.size;
+        }
+      }
+    }
+  }
+}
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch(() => {});
-    })
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS).catch(() => {}))
   );
   self.skipWaiting();
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
+    caches.keys().then((keys) =>
+      Promise.all(
         keys
           .filter((key) => key !== CACHE_NAME)
           .map((key) => caches.delete(key))
-      );
-    })
+      )
+    )
   );
   self.clients.claim();
 });
 
-self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "UPDATE_BLOCKLIST") {
-    userBlocklist = event.data.blocklist || [];
-  }
-});
-
 self.addEventListener("fetch", (event) => {
-  const url = new URL(event.request.url);
-  const hostname = url.hostname.replace("www.", "");
+  const { request } = event;
 
-  const isBlocked = [...DEFAULT_BLOCKLIST, ...userBlocklist].some(
-    (blocked) => hostname === blocked || hostname.endsWith("." + blocked)
-  );
-
-  if (isBlocked) {
-    const interceptUrl = new URL("/intercept", self.location.origin);
-    interceptUrl.searchParams.set("domain", hostname);
-    event.respondWith(Response.redirect(interceptUrl.toString()));
-    return;
-  }
-
-  if (event.request.mode === "navigate") {
+  if (request.mode === "navigate") {
     event.respondWith(
-      caches.match(event.request).then((cached) => {
-        const fetchPromise = fetch(event.request)
+      caches.match(request).then((cached) => {
+        const fetchPromise = fetch(request)
           .then((response) => {
             if (response && response.status === 200) {
               const clone = response.clone();
               caches.open(CACHE_NAME).then((cache) => {
-                cache.put(event.request, clone);
+                cache.put(request, clone);
+                enforceCacheLimit();
               });
             }
             return response;
@@ -99,19 +91,20 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (
-    event.request.method === "GET" &&
-    (event.request.destination === "style" ||
-     event.request.destination === "script" ||
-     event.request.destination === "font" ||
-     event.request.destination === "image")
+    request.method === "GET" &&
+    (request.destination === "style" ||
+     request.destination === "script" ||
+     request.destination === "font" ||
+     request.destination === "image")
   ) {
     event.respondWith(
-      caches.match(event.request).then((cached) => {
-        const fetchPromise = fetch(event.request).then((response) => {
+      caches.match(request).then((cached) => {
+        const fetchPromise = fetch(request).then((response) => {
           if (response && response.status === 200) {
             const clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, clone);
+              cache.put(request, clone);
+              enforceCacheLimit();
             });
           }
           return response;
@@ -122,7 +115,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  event.respondWith(fetch(event.request));
+  event.respondWith(fetch(request));
 });
 
 self.addEventListener("push", (event) => {

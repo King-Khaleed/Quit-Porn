@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Nav from "@/components/Nav";
 import { useAuth } from "@/hooks/useAuth";
 import { useStreak } from "@/hooks/useStreak";
@@ -10,7 +10,6 @@ import {
   getTechniqueRanking,
   getRecoveryTimeTrend,
   loadUrgeLogs,
-  type UrgeLog,
 } from "@/lib/urgeTracking";
 
 type Duration = 7 | 30 | 90;

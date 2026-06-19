@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { collectBackupData, formatBackupSize, generateTransferCode, type BackupData } from "@/lib/backup";
-import { IconCheck, IconAlert } from "@/components/icons";
+import { IconCheck } from "@/components/icons";
 
 interface Props {
   onClose: () => void;
@@ -112,7 +112,7 @@ export default function ExportFlow({ onClose }: Props) {
             </button>
             {showCode && (
               <div className="mt-2 bg-bg-elevated border border-border-primary rounded-xl p-3">
-                <p className="text-[10px] text-text-tertiary mb-1.5">Type this code on your other device's Import screen:</p>
+                <p className="text-[10px] text-text-tertiary mb-1.5">Type this code on your other device&apos;s Import screen:</p>
                 <code className="block text-xs text-accent font-mono break-all bg-black/20 rounded-lg px-3 py-2 select-all">
                   {transferCode}
                 </code>

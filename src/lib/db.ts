@@ -3,7 +3,32 @@ import { openDB, type IDBPDatabase } from "idb";
 const DB_NAME = "quitporn";
 const DB_VERSION = 1;
 
-let dbPromise: Promise<IDBPDatabase> | null = null;
+export interface JournalEntryRecord {
+  id?: number;
+  encrypted: string;
+  mood: string;
+  timestamp: string;
+  synced: boolean;
+}
+
+export interface TechniqueLogRecord {
+  id?: number;
+  techniqueId: string;
+  mood: string;
+  time: string;
+  worked: boolean;
+}
+
+export interface SettingsRecord {
+  key: string;
+  value: unknown;
+}
+
+let dbPromise: Promise<IDBPDatabase<{
+  journal_entries: { key: number; value: JournalEntryRecord; };
+  technique_logs: { key: number; value: TechniqueLogRecord; };
+  settings: { key: string; value: SettingsRecord; };
+}>> | null = null;
 
 function getDb() {
   if (!dbPromise) {
@@ -23,12 +48,6 @@ function getDb() {
         }
         if (!db.objectStoreNames.contains("settings")) {
           db.createObjectStore("settings", { keyPath: "key" });
-        }
-        if (!db.objectStoreNames.contains("sync_queue")) {
-          db.createObjectStore("sync_queue", {
-            keyPath: "id",
-            autoIncrement: true,
-          });
         }
       },
     });
@@ -57,73 +76,39 @@ export async function saveJournalEntryLocal(entry: {
   return db.add("journal_entries", { ...entry, synced: false });
 }
 
-export async function getLocalJournalEntries(): Promise<any[]> {
+export async function getLocalJournalEntries(): Promise<JournalEntryRecord[]> {
   const db = await getDb();
   return db.getAll("journal_entries");
 }
 
-export async function getUnsyncedEntries(): Promise<any[]> {
+export async function logTechniqueLocal(log: TechniqueLogRecord) {
   const db = await getDb();
-  const all = await db.getAll("journal_entries");
-  return all.filter((e: any) => !e.synced);
+  return db.add("technique_logs", { ...log, time: log.time || new Date().toISOString() });
 }
 
-export async function markEntrySynced(id: number) {
-  const db = await getDb();
-  const entry = await db.get("journal_entries", id);
-  if (entry) {
-    entry.synced = true;
-    await db.put("journal_entries", entry);
-  }
-}
-
-export async function logTechniqueLocal(log: {
-  techniqueId: string;
-  mood: string;
-  time: string;
-  worked: boolean;
-}) {
-  const db = await getDb();
-  return db.add("technique_logs", log);
-}
-
-export async function getTechniqueLogs(): Promise<any[]> {
+export async function getTechniqueLogs(): Promise<TechniqueLogRecord[]> {
   const db = await getDb();
   return db.getAll("technique_logs");
 }
 
-export async function saveSetting(key: string, value: any) {
+export async function saveSetting(key: string, value: unknown) {
   const db = await getDb();
   return db.put("settings", { key, value });
 }
 
-export async function getSetting(key: string): Promise<any> {
+export async function getSetting<T = unknown>(key: string): Promise<T | undefined> {
   const db = await getDb();
   const result = await db.get("settings", key);
-  return result?.value;
+  return result?.value as T | undefined;
 }
 
-export async function getAllSettings(): Promise<Record<string, any>> {
+export async function getAllSettings(): Promise<Record<string, unknown>> {
   const db = await getDb();
   const all = await db.getAll("settings");
-  return all.reduce((acc: Record<string, any>, s: any) => {
+  return all.reduce((acc: Record<string, unknown>, s: SettingsRecord) => {
     acc[s.key] = s.value;
     return acc;
   }, {});
 }
 
-export async function addToSyncQueue(action: string, data: any) {
-  const db = await getDb();
-  return db.add("sync_queue", { action, data, timestamp: new Date().toISOString() });
-}
 
-export async function processSyncQueue(processFn: (action: string, data: any) => Promise<void>) {
-  const db = await getDb();
-  const queue = await db.getAll("sync_queue");
-  for (const item of queue) {
-    try {
-      await processFn(item.action, item.data);
-      await db.delete("sync_queue", item.id);
-    } catch {}
-  }
-}

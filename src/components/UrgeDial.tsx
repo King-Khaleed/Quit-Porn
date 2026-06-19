@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { tapFeedback } from "@/lib/feedback";
 
 interface Props {
   onSelect: (value: number) => void;
@@ -28,6 +29,7 @@ export default function UrgeDial({ onSelect, initial, label, className = "" }: P
 
   const handleSelect = useCallback((v: number) => {
     setSelected(v);
+    tapFeedback();
     onSelect(v);
   }, [onSelect]);
 
@@ -46,7 +48,7 @@ export default function UrgeDial({ onSelect, initial, label, className = "" }: P
               onClick={() => handleSelect(level.value)}
               onMouseEnter={() => setHovered(level.value)}
               onMouseLeave={() => setHovered(0)}
-              className={`relative flex-1 max-w-[36px] h-16 rounded-lg transition-all duration-150 flex flex-col items-center justify-end pb-1 ${
+              className={`relative flex-1 max-w-[36px] h-16 rounded-lg transition-all duration-150 flex flex-col items-center justify-end pb-1 active:scale-95 ${
                 hover ? level.color : active ? level.color : "bg-bg-elevated text-text-tertiary/40"
               }`}
               aria-label={`${level.value} - ${level.label}`}

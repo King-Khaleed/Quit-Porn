@@ -41,7 +41,7 @@ export default function PremiumPage() {
             Premium — Coming Soon
           </h1>
           <p className="text-sm text-text-secondary mt-1">
-            We're finalising pricing and features. Here's what we're planning.
+            We&apos;re finalising pricing and features. Here&apos;s what we&apos;re planning.
           </p>
         </div>
 
@@ -84,7 +84,7 @@ export default function PremiumPage() {
             Coming soon — no payment setup yet
           </div>
           <p className="text-xs text-text-tertiary text-center mt-2">
-            The free tier includes streak counter, encrypted journal, and basic content blocking — no time limits, no tracking.
+            The free tier includes streak counter, encrypted journal, and AI techniques — no time limits, no tracking.
           </p>
         </div>
       </div>

@@ -100,7 +100,7 @@ export default async function BlogPostPage({ params }: Props) {
               if (block.type === "quote") {
                 return (
                   <blockquote key={i} className="border-l-2 border-accent pl-4 py-2 text-text-tertiary italic">
-                    <p>"{block.text}"</p>
+                    <p>&ldquo;{block.text}&rdquo;</p>
                     {block.source && (
                       <cite className="text-[10px] text-text-tertiary not-italic mt-2 block">
                         — {block.source}

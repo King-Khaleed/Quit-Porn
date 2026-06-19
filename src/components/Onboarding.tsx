@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { IconLogo } from "@/components/icons";
+import { getSupabase } from "@/lib/supabase";
 
 interface Props {
   onComplete: () => void;
@@ -24,12 +25,13 @@ export default function Onboarding({ onComplete }: Props) {
     if (selectedPrice) {
       localStorage.setItem("qp_pricing_preference", selectedPrice);
       try {
-        const { getSupabase } = require("@/lib/supabase");
         const supabase = getSupabase();
-        supabase.from("onboarding_feedback").insert({
-          pricing_preference: selectedPrice,
-          created_at: new Date().toISOString(),
-        }).then().catch(() => {});
+        (async () => {
+          await supabase.from("onboarding_feedback").insert({
+            pricing_preference: selectedPrice,
+            created_at: new Date().toISOString(),
+          });
+        })().catch(() => {});
       } catch {}
     }
     onComplete();
@@ -97,7 +99,7 @@ export default function Onboarding({ onComplete }: Props) {
         {step === 2 && (
           <div className="flex-1 flex flex-col items-center justify-center text-center animate-fade-in">
             <h2 className="text-xl font-heading font-bold text-text-primary mb-8">
-              What You'll Get
+              What You&apos;ll Get
             </h2>
             <div className="w-full space-y-3 mb-auto">
               {[
@@ -144,7 +146,7 @@ export default function Onboarding({ onComplete }: Props) {
               The Real Talk
             </h2>
             <p className="text-sm text-text-secondary mt-2 max-w-xs leading-relaxed">
-              This app is 100% free right now. We're exploring premium features soon. If we did charge, what would you prefer?
+              This app is 100% free right now. We&apos;re exploring premium features soon. If we did charge, what would you prefer?
             </p>
             <div className="w-full mt-6 space-y-2">
               {PRICING_OPTIONS.map((opt) => (

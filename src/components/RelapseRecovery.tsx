@@ -55,9 +55,9 @@ export default function RelapseRecovery({ onComplete, onDismiss }: Props) {
   const { handleRelapse } = useStreak();
   const [phase, setPhase] = useState<Phase>("step1");
   const [trigger, setTrigger] = useState("");
-  const [triggerDetail, setTriggerDetail] = useState("");
+  const [triggerDetail] = useState("");
   const [lesson, setLesson] = useState("");
-  const [lessonDetail, setLessonDetail] = useState("");
+  const [lessonDetail] = useState("");
   const [commitment, setCommitment] = useState("");
   const [customCommitment, setCustomCommitment] = useState("");
 
@@ -160,7 +160,7 @@ export default function RelapseRecovery({ onComplete, onDismiss }: Props) {
           <div className="flex-1 flex flex-col items-center justify-center gap-6 animate-fade-in">
             <div className="text-center">
               <p className="text-xl font-heading font-bold text-text-primary">
-                What's your commitment?
+                What&apos;s your commitment?
               </p>
               <p className="text-sm text-text-secondary mt-1">
                 Forward motion. One small step.
@@ -223,7 +223,7 @@ export default function RelapseRecovery({ onComplete, onDismiss }: Props) {
             </div>
             <div className="text-center">
               <p className="text-xl font-heading font-bold text-text-primary">
-                You're back
+                You&apos;re back
               </p>
               <p className="text-sm text-text-secondary mt-2 max-w-xs mx-auto leading-relaxed">
                 Your streak counter reset. But your knowledge just grew. That data point makes your recovery stronger.
@@ -264,7 +264,7 @@ export default function RelapseRecovery({ onComplete, onDismiss }: Props) {
             onClick={() => setPhase("step2")}
             className="w-full py-2.5 rounded-xl text-sm font-medium bg-accent text-black hover:bg-accent-hover transition-all"
           >
-            That's OK — let's move forward
+            That&apos;s OK — let&apos;s move forward
           </button>
         </div>
       )}

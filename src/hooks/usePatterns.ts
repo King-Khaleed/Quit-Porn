@@ -14,7 +14,7 @@ export function usePatterns() {
       const score = getRiskScore(mood);
       setRiskScore(score);
 
-      const alert = await analyzePatterns(mood);
+      const alert = await analyzePatterns();
       setPatternAlert(alert);
     } finally {
       setAnalyzing(false);

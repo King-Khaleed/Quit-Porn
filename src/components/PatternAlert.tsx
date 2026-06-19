@@ -37,10 +37,10 @@ export default function PatternAlertBanner({ alert, riskScore }: Props) {
           <IconCheck size={20} className="text-accent mt-0.5 shrink-0" />
           <div>
             <p className="text-sm font-medium text-accent mb-0.5">
-              You're in a good window
+              You&apos;re in a good window
             </p>
             <p className="text-xs text-text-secondary leading-relaxed">
-              Keep doing what you're doing. Journal entries help us spot patterns before they form.
+              Keep doing what you&apos;re doing. Journal entries help us spot patterns before they form.
             </p>
           </div>
         </div>

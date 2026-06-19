@@ -171,7 +171,7 @@ export default function TechniqueCard({ technique, onLog, compact }: Props) {
                 }}
                 className="flex-1 py-1.5 rounded-lg text-xs font-medium bg-bg-elevated text-text-secondary hover:bg-bg-surface-hover transition-all duration-200"
               >
-                Didn't Help
+                Didn&apos;t Help
               </button>
             </div>
           )}

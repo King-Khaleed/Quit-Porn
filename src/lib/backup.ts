@@ -6,9 +6,7 @@ export interface BackupPayload {
   journal: unknown[];
   techniqueLogs: unknown[];
   settings: Record<string, unknown>;
-  blocklist: string[];
   commitStreak: number;
-  passphrase: string | null;
   feed: unknown[];
   coachSession: unknown;
   coachUsage: unknown;
@@ -46,23 +44,6 @@ function getLocalItem(key: string): unknown {
   }
 }
 
-function getUserDataKeys(): string[] {
-  return [
-    "qp_streak",
-    "qp_urges",
-    "qp_checkins",
-    "qp_commit_streak",
-    "qp_recoveries",
-    "qp_feed",
-    "qp_blocklist",
-    "qp_passphrase",
-    "qp_salt",
-    "qp_premium",
-    "qp_coach_session",
-    "qp_coach_usage",
-  ];
-}
-
 async function getIndexedDBData(): Promise<{
   journal: unknown[];
   techniqueLogs: unknown[];
@@ -75,7 +56,7 @@ async function getIndexedDBData(): Promise<{
   const result = { journal: [] as unknown[], techniqueLogs: [] as unknown[], settings: {} as Record<string, unknown> };
 
   try {
-    const db = await new Promise<IDBDatabase | null>((resolve, reject) => {
+    const db = await new Promise<IDBDatabase | null>((resolve) => {
       const req = indexedDB.open("quitporn", 1);
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => resolve(null);
@@ -133,9 +114,7 @@ export async function collectBackupData(): Promise<BackupData> {
   const checkins = getLocalItem("qp_checkins") as unknown[] || [];
   const recoveries = getLocalItem("qp_recoveries") as unknown[] || [];
   const feed = getLocalItem("qp_feed") as unknown[] || [];
-  const blocklist = getLocalItem("qp_blocklist") as string[] || [];
   const commitStreak = (getLocalItem("qp_commit_streak") as number) || 0;
-  const passphrase = getLocalItem("qp_passphrase") as string | null;
   const premium = getLocalItem("qp_premium") === true;
   const coachSession = getLocalItem("qp_coach_session");
   const coachUsage = getLocalItem("qp_coach_usage");
@@ -161,9 +140,7 @@ export async function collectBackupData(): Promise<BackupData> {
       journal,
       techniqueLogs,
       settings,
-      blocklist,
       commitStreak,
-      passphrase,
       feed,
       coachSession,
       coachUsage,
@@ -232,8 +209,6 @@ export async function restoreBackup(data: BackupData): Promise<{ restored: strin
   setLocal("qp_commit_streak", payload.commitStreak);
   setLocal("qp_recoveries", payload.recoveries);
   setLocal("qp_feed", payload.feed);
-  setLocal("qp_blocklist", payload.blocklist);
-  setLocal("qp_passphrase", payload.passphrase);
   if (payload.premium) setLocal("qp_premium", true);
   if (payload.coachSession) setLocal("qp_coach_session", payload.coachSession);
   if (payload.coachUsage) setLocal("qp_coach_usage", payload.coachUsage);
@@ -242,7 +217,7 @@ export async function restoreBackup(data: BackupData): Promise<{ restored: strin
   if (payload.journal.length > 0 || payload.techniqueLogs.length > 0 || Object.keys(payload.settings).length > 0) {
     try {
       const req = indexedDB.open("quitporn", 1);
-      await new Promise<void>((resolve, reject) => {
+      await new Promise<void>((resolve) => {
         req.onsuccess = () => {
           const db = req.result;
           const tx = db.transaction(["journal_entries", "technique_logs", "settings"], "readwrite");
@@ -332,7 +307,7 @@ export function decodeTransferCode(code: string): TransferCodeResult {
     const json = atob(padded);
     const data = JSON.parse(json) as BackupData;
     return { code, valid: true, data };
-  } catch (e) {
+  } catch {
     return { code, valid: false, error: "Invalid transfer code" };
   }
 }

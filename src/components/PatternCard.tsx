@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import {
   loadUrgeLogs,
   getUrgeTrend,
   getTechniqueRanking,
   getRecoveryTimeTrend,
-  getUrgeIntensitySeries,
   type UrgeLog,
 } from "@/lib/urgeTracking";
 import { getTechniqueById } from "@/data/techniques";
@@ -17,8 +16,6 @@ type Insight = {
   body: string;
   type: string;
 };
-
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function generateInsights(logs: UrgeLog[]): Insight[] {
   const insights: Insight[] = [];
@@ -36,7 +33,7 @@ function generateInsights(logs: UrgeLog[]): Insight[] {
       body:
         trend.trend === "down"
           ? `Your average urge intensity dropped to ${trend.average} this week. What you're doing is working.`
-          : `Your average urge intensity rose to ${trend.average} this week. Consider pre-committing before high-risk windows.`,
+           : `Your average urge intensity rose to ${trend.average} this week. Use a Micro-Moment before high-risk windows.`,
       type: "trend",
     });
   }
@@ -119,15 +116,12 @@ function generateInsights(logs: UrgeLog[]): Insight[] {
 }
 
 export default function PatternCard() {
-  const [insights, setInsights] = useState<Insight[]>([]);
+  const [insights] = useState(() => {
+    const logs = loadUrgeLogs();
+    return generateInsights(logs);
+  });
   const [current, setCurrent] = useState(0);
   const [dismissed, setDismissed] = useState(false);
-
-  useEffect(() => {
-    const logs = loadUrgeLogs();
-    const generated = generateInsights(logs);
-    setInsights(generated);
-  }, []);
 
   const handleNext = useCallback(() => {
     setCurrent((c) => (c + 1) % insights.length);

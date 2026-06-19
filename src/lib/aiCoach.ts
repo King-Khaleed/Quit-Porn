@@ -98,14 +98,7 @@ export function createNewSession(): CoachSession {
   };
 }
 
-function loadUrgeLogs(): any[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const stored = localStorage.getItem("qp_urges");
-    if (stored) return JSON.parse(stored);
-  } catch {}
-  return [];
-}
+import { loadUrgeLogs, getUrgeTrend, getTechniqueRanking } from "@/lib/urgeTracking";
 
 function loadStreak() {
   if (typeof window === "undefined")
@@ -129,47 +122,6 @@ type ContextData = {
   peak7d: number;
   logs7d: number;
 };
-
-function getUrgeTrend(): { average: number; trend: string; peak7d: number; logs7d: number } {
-  const logs = loadUrgeLogs();
-  const now = Date.now();
-  const weekAgo = new Date(now - 7 * 86400000).toISOString();
-  const recent = logs.filter((l) => l.timestamp >= weekAgo);
-  if (recent.length === 0) return { average: 0, trend: "stable", peak7d: 0, logs7d: 0 };
-  const avg = recent.reduce((s, l) => s + l.intensity, 0) / recent.length;
-  const peak = Math.max(...recent.map((l) => l.intensity));
-  const prevWeek = logs.filter(
-    (l) => l.timestamp < weekAgo && l.timestamp >= new Date(now - 14 * 86400000).toISOString()
-  );
-  let trend = "stable";
-  if (prevWeek.length > 0) {
-    const prevAvg = prevWeek.reduce((s, l) => s + l.intensity, 0) / prevWeek.length;
-    if (avg < prevAvg * 0.9) trend = "down";
-    else if (avg > prevAvg * 1.1) trend = "up";
-  }
-  return { average: Math.round(avg * 10) / 10, trend, peak7d: peak, logs7d: recent.length };
-}
-
-function getTechniqueRanking(): { techniqueId: string; avgDrop: number; uses: number }[] {
-  const logs = loadUrgeLogs();
-  const techniques = new Map<string, { totalDrop: number; count: number }>();
-  for (const log of logs) {
-    if (log.techniqueId && log.intensityAfter !== undefined) {
-      const drop = log.intensity - log.intensityAfter;
-      const existing = techniques.get(log.techniqueId) || { totalDrop: 0, count: 0 };
-      existing.totalDrop += drop;
-      existing.count += 1;
-      techniques.set(log.techniqueId, existing);
-    }
-  }
-  return Array.from(techniques.entries())
-    .map(([techniqueId, data]) => ({
-      techniqueId,
-      avgDrop: Math.round((data.totalDrop / data.count) * 10) / 10,
-      uses: data.count,
-    }))
-    .sort((a, b) => b.avgDrop - a.avgDrop);
-}
 
 function getTechniqueById(id: string): { name: string } | undefined {
   const techniques = [
@@ -327,8 +279,8 @@ export async function sendCoachMessage(
         "I'm here to help. Could you tell me more about what's going on?";
 
       return { content, model };
-    } catch (err: any) {
-      errors.push(`${model}: ${err.message}`);
+    } catch (err) {
+      errors.push(`${model}: ${err instanceof Error ? err.message : "Unknown error"}`);
       continue;
     }
   }

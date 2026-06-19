@@ -17,7 +17,6 @@ export async function POST(request: Request) {
 
     if (alertName === "subscription_created" || alertName === "subscription_updated") {
       const cancelAt = body.cancellation_effective_date || null;
-      const nextBillDate = body.next_bill_date || null;
 
       if (cancelAt) {
         await supabase

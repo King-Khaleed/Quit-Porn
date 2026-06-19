@@ -6,11 +6,14 @@ import Nav from "@/components/Nav";
 import { IconCheck } from "@/components/icons";
 
 export default function InstallPage() {
-  const [isInstalled, setIsInstalled] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const mediaQuery = window.matchMedia("(display-mode: standalone)");
+    return mediaQuery.matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  });
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(display-mode: standalone)");
-    setIsInstalled(mediaQuery.matches || (window.navigator as any).standalone === true);
     const handler = (e: MediaQueryListEvent) => setIsInstalled(e.matches);
     mediaQuery.addEventListener("change", handler);
     return () => mediaQuery.removeEventListener("change", handler);

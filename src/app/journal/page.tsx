@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Nav from "@/components/Nav";
 import { useAuth } from "@/hooks/useAuth";
 import { encrypt, decrypt } from "@/lib/crypto";
@@ -64,36 +64,30 @@ function getAdaptiveQuestions(mood: string): string[] {
 
 export default function JournalPage() {
   const { session } = useAuth();
-  const [entries, setEntries] = useState<any[]>([]);
+  const [entries, setEntries] = useState<{ id?: number; encrypted: string; mood: string; timestamp: string; synced: boolean }[]>([]);
   const [saving, setSaving] = useState(false);
   const [text, setText] = useState("");
   const [mood, setMood] = useState("");
-  const [viewingEntry, setViewingEntry] = useState<any | null>(null);
+  const [viewingEntry, setViewingEntry] = useState<{ encrypted: string; mood: string; timestamp: string } | null>(null);
   const [decryptedContent, setDecryptedContent] = useState<string | null>(null);
   const [decrypting, setDecrypting] = useState(false);
   const [decryptError, setDecryptError] = useState<string | null>(null);
-  const [passphrase, setPassphrase] = useState<string | null>(null);
+  const [passphrase] = useState<string | null>(() => {
+    if (typeof window === "undefined" || typeof localStorage === "undefined") return null;
+    try {
+      const stored = localStorage.getItem("qp_passphrase");
+      if (stored) return stored;
+      const phrase = Array.from(crypto.getRandomValues(new Uint8Array(8)))
+        .map((b) => b.toString(16).padStart(2, "0"))
+        .join("");
+      localStorage.setItem("qp_passphrase", phrase);
+      return phrase;
+    } catch { return null; }
+  });
 
   useEffect(() => {
     requestPersistentStorage();
     getLocalJournalEntries().then(setEntries).catch(() => {});
-  }, []);
-
-  // Auto-generate encryption key on first mount
-  useEffect(() => {
-    try {
-      if (typeof localStorage === "undefined") return;
-      const stored = localStorage.getItem("qp_passphrase");
-      if (stored) {
-        setPassphrase(stored);
-      } else {
-        const phrase = Array.from(crypto.getRandomValues(new Uint8Array(8)))
-          .map((b) => b.toString(16).padStart(2, "0"))
-          .join("");
-        localStorage.setItem("qp_passphrase", phrase);
-        setPassphrase(phrase);
-      }
-    } catch {}
   }, []);
 
   const recentUrgeLevel = useMemo(() => getRecentUrgeLevel(), []);
@@ -122,7 +116,7 @@ export default function JournalPage() {
     }
   };
 
-  const handleViewEntry = async (entry: any) => {
+  const handleViewEntry = async (entry: { encrypted: string; mood: string; timestamp: string }) => {
     setViewingEntry(entry);
     setDecryptedContent(null);
     setDecryptError(null);
@@ -289,7 +283,7 @@ export default function JournalPage() {
             <p className="text-xs font-medium text-text-tertiary uppercase tracking-wider">
               Entries ({entries.length})
             </p>
-            {[...entries].reverse().map((entry: any, i: number) => (
+            {[...entries].reverse().map((entry, i: number) => (
               <button
                 key={entry.id ?? i}
                 onClick={() => handleViewEntry(entry)}

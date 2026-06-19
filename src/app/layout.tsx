@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Sora, Outfit } from "next/font/google";
+import ServiceWorkerInit from "@/components/ServiceWorkerInit";
+import { ToastProvider } from "@/components/ToastProvider";
 import "./globals.css";
 
 const sora = Sora({
@@ -68,18 +70,10 @@ export default function RootLayout({
         <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
       </head>
       <body className="min-h-dvh flex flex-col">
-        <main className="flex-1 flex flex-col">{children}</main>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                  navigator.serviceWorker.register('/sw.js');
-                });
-              }
-            `,
-          }}
-        />
+        <ToastProvider>
+          <main className="flex-1 flex flex-col">{children}</main>
+          <ServiceWorkerInit />
+        </ToastProvider>
       </body>
     </html>
   );
