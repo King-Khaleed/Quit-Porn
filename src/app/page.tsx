@@ -177,8 +177,15 @@ export default function HomePage() {
     <>
       <div className="flex-1 flex flex-col max-w-lg mx-auto w-full px-5 pt-8 pb-28">
         <div className="animate-fade-in">
-          <p className="text-sm text-text-secondary font-medium">Good {greeting}</p>
-          <h1 className="text-xl font-heading font-bold text-text-primary mt-0.5">Your Recovery</h1>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-accent to-emerald-500 flex items-center justify-center shadow-[0_4px_12px_rgba(45,212,191,0.25)] shrink-0">
+              <IconLogo size={20} className="text-black" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-text-tertiary tracking-wider uppercase">Good {greeting}</p>
+              <h1 className="text-lg font-heading font-bold text-text-primary leading-tight">Your Recovery</h1>
+            </div>
+          </div>
         </div>
 
         {/* Pattern Card — smart insight */}
@@ -284,23 +291,23 @@ export default function HomePage() {
           <div className="grid grid-cols-2 gap-2">
             <a
               href="/journal"
-              className="bg-bg-surface border border-border-primary rounded-xl px-3 py-3 hover:bg-bg-surface-hover transition-all"
+              className="card-glass px-3 py-3 hover:bg-bg-surface-hover transition-all group"
             >
-              <p className="text-xs font-medium text-text-primary">Write Journal</p>
+              <p className="text-xs font-medium text-text-primary group-hover:text-accent transition-colors">Write Journal</p>
               <p className="text-[10px] text-text-tertiary mt-0.5">Encrypted & private</p>
             </a>
             <a
-              href="/techniques"
-              className="bg-bg-surface border border-border-primary rounded-xl px-3 py-3 hover:bg-bg-surface-hover transition-all"
+              href="/insights"
+              className="card-glass px-3 py-3 hover:bg-bg-surface-hover transition-all group"
             >
-              <p className="text-xs font-medium text-text-primary">Techniques</p>
+              <p className="text-xs font-medium text-text-primary group-hover:text-accent transition-colors">Techniques</p>
               <p className="text-[10px] text-text-tertiary mt-0.5">60-sec interventions</p>
             </a>
             <a
               href="/settings"
-              className="bg-bg-surface border border-border-primary rounded-xl px-3 py-3 hover:bg-bg-surface-hover transition-all"
+              className="card-glass px-3 py-3 hover:bg-bg-surface-hover transition-all group"
             >
-              <p className="text-xs font-medium text-text-primary">Settings</p>
+              <p className="text-xs font-medium text-text-primary group-hover:text-accent transition-colors">Settings</p>
               <p className="text-[10px] text-text-tertiary mt-0.5">Backup & data</p>
             </a>
           </div>

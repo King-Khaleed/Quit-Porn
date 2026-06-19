@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Nav from "@/components/Nav";
+import TechniqueCard from "@/components/TechniqueCard";
 import { useAuth } from "@/hooks/useAuth";
 import { useStreak } from "@/hooks/useStreak";
 import {
@@ -11,8 +12,17 @@ import {
   getRecoveryTimeTrend,
   loadUrgeLogs,
 } from "@/lib/urgeTracking";
+import {
+  techniques,
+  getTechniquesForMood,
+  type Technique,
+} from "@/data/techniques";
+import { logTechniqueLocal } from "@/lib/db";
 
 type Duration = 7 | 30 | 90;
+type InsightTab = "stats" | "techniques";
+
+const MOOD_FILTERS = ["all", "anxious", "stressed", "bored", "lonely", "angry", "sad", "urgent", "overwhelmed", "restless"];
 
 function Bar({ value, max, color }: { value: number; max: number; color: string }) {
   const pct = max > 0 ? (value / max) * 100 : 0;
@@ -34,7 +44,7 @@ function UrgeChart({ days }: { days: Duration }) {
   const barColor = "bg-accent/70";
 
   return (
-    <div className="bg-bg-surface border border-border-primary rounded-xl p-4 animate-fade-in-up">
+    <div className="card-glass p-4 animate-fade-in-up">
       <p className="text-sm text-text-secondary mb-3">Urge Trend — Last {days} Days</p>
       <div className="flex gap-0.5">
         {series.map((s) => (
@@ -49,19 +59,7 @@ function UrgeChart({ days }: { days: Duration }) {
   );
 }
 
-export default function InsightsPage() {
-  const { session } = useAuth();
-  const { streak } = useStreak();
-  const [duration, setDuration] = useState<Duration>(7);
-
-  if (!session) {
-    return (
-      <div className="flex-1 flex items-center justify-center bg-bg-primary px-6">
-        <p className="text-sm text-text-tertiary">Please sign in to see insights.</p>
-      </div>
-    );
-  }
-
+function StatsView({ duration, setDuration, streak }: { duration: Duration; setDuration: (d: Duration) => void; streak: { current: number; longest: number; relapseDates: string[] } }) {
   const trend = getUrgeTrend();
   const techniqueRanking = getTechniqueRanking();
   const recoveryTrend = getRecoveryTimeTrend();
@@ -75,136 +73,245 @@ export default function InsightsPage() {
 
   return (
     <>
-      <div className="flex-1 flex flex-col max-w-lg mx-auto w-full px-5 pt-8 pb-24">
-        <div className="animate-fade-in">
-          <h1 className="text-xl font-heading font-bold text-text-primary">Insights</h1>
-          <p className="text-sm text-text-secondary mt-0.5">
-            Urge trends, technique effectiveness, and recovery patterns.
+      {/* Duration toggle */}
+      <div className="flex gap-2">
+        {([7, 30, 90] as Duration[]).map((d) => (
+          <button
+            key={d}
+            onClick={() => setDuration(d)}
+            className={`tab-pill ${
+              duration === d ? "tab-pill-active" : "tab-pill-inactive"
+            }`}
+          >
+            {d}d
+          </button>
+        ))}
+      </div>
+
+      {/* Urge Chart */}
+      <div className="mt-4">
+        <UrgeChart days={duration} />
+      </div>
+
+      {/* Trend summary cards */}
+      <div className="mt-3 grid grid-cols-4 gap-2">
+        {[
+          { label: "Avg", value: trend.average, color: "text-text-primary" },
+          { label: "Trend", value: `${trendArrow} ${trend.trend === "down" ? "Down" : trend.trend === "up" ? "Up" : "Stable"}`, color: trendColor },
+          { label: "Peak", value: trend.peak7d, color: "text-text-primary" },
+          { label: "Logs", value: trend.logs7d, color: "text-text-primary" },
+        ].map((stat, i) => (
+          <div key={stat.label} className="card-glass p-3 text-center animate-fade-in-up" style={{ animationDelay: `${i * 0.05}s` }}>
+            <p className={`text-lg font-heading font-bold tabular-nums ${stat.color}`}>{stat.value}</p>
+            <p className="text-[10px] text-text-tertiary mt-0.5">{stat.label}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Urge Awareness Score */}
+      {totalUrges > 0 && (
+        <div className="mt-3 card-glass p-4 animate-fade-in-up stagger-2">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-text-secondary">Urge Awareness Score</p>
+            <span className={`text-lg font-heading font-bold ${
+              awarenessScore >= 70 ? "text-accent" : awarenessScore >= 40 ? "text-warning" : "text-danger"
+            }`}>
+              {awarenessScore}%
+            </span>
+          </div>
+          <div className="h-2 bg-bg-elevated rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-1000 ${
+                awarenessScore >= 70 ? "bg-accent" : awarenessScore >= 40 ? "bg-warning" : "bg-danger"
+              }`}
+              style={{ width: `${awarenessScore}%` }}
+            />
+          </div>
+          <p className="text-xs text-text-tertiary mt-2">
+            {resolvedUrges} of {totalUrges} urges logged with a technique that worked
           </p>
         </div>
+      )}
 
-        {/* Duration toggle */}
-        <div className="mt-5 flex gap-2">
-          {([7, 30, 90] as Duration[]).map((d) => (
+      {/* Technique Effectiveness */}
+      {techniqueRanking.length > 0 && (
+        <div className="mt-3 card-glass p-4 animate-fade-in-up stagger-3">
+          <p className="text-sm text-text-secondary mb-3">Technique Effectiveness</p>
+          <div className="space-y-2">
+            {techniqueRanking.slice(0, 5).map((t) => {
+              const maxDrop = Math.max(...techniqueRanking.map((r) => r.avgDrop), 1);
+              const pct = (t.avgDrop / maxDrop) * 100;
+              return (
+                <div key={t.techniqueId}>
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="text-text-primary font-medium capitalize">{t.techniqueId.replace(/-/g, " ")}</span>
+                    <span className="text-text-tertiary">-{t.avgDrop} pts avg ({t.uses}x)</span>
+                  </div>
+                  <div className="h-1.5 bg-bg-elevated rounded-full overflow-hidden">
+                    <div className="h-full bg-accent rounded-full" style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Time to Recover */}
+      <div className="mt-3 card-glass p-4 animate-fade-in-up stagger-4">
+        <p className="text-sm text-text-secondary mb-1">Time to Recover</p>
+        <p className={`text-2xl font-heading font-bold tabular-nums ${
+          recoveryTrend.trend === "improving" ? "text-accent" : recoveryTrend.trend === "worsening" ? "text-danger" : "text-text-primary"
+        }`}>
+          {recoveryTrend.avgMinutes > 0 ? `${recoveryTrend.avgMinutes} min` : "—"}
+        </p>
+        <p className="text-xs text-text-tertiary mt-1">
+          {recoveryTrend.trend === "improving"
+            ? "Trend: Improving — you're recovering faster"
+            : recoveryTrend.trend === "worsening"
+            ? "Trend: Worsening — consider trying new techniques"
+            : "Not enough data yet"}
+        </p>
+      </div>
+
+      {/* Best Streak */}
+      <div className="mt-3 card-glass p-4 animate-fade-in-up stagger-5">
+        <p className="text-sm text-text-secondary mb-1">Best Streak</p>
+        <p className="text-2xl font-heading font-bold text-text-primary tabular-nums">{streak.longest} days</p>
+      </div>
+    </>
+  );
+}
+
+function TechniquesView() {
+  const [filter, setFilter] = useState("all");
+  const [showAll, setShowAll] = useState(false);
+
+  const filtered: Technique[] =
+    filter === "all"
+      ? showAll
+        ? techniques
+        : techniques.slice(0, 3)
+      : getTechniquesForMood(filter);
+
+  const handleLog = (techniqueId: string, worked: boolean) => {
+    logTechniqueLocal({
+      techniqueId,
+      mood: filter === "all" ? "neutral" : filter,
+      time: new Date().toISOString(),
+      worked,
+    });
+  };
+
+  return (
+    <>
+      <div className="overflow-x-auto scrollbar-none -mx-1">
+        <div className="flex gap-2 pb-1 px-1">
+          {MOOD_FILTERS.map((m) => (
             <button
-              key={d}
-              onClick={() => setDuration(d)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                duration === d ? "bg-accent text-black" : "bg-bg-surface text-text-secondary hover:bg-bg-surface-hover"
+              key={m}
+              onClick={() => {
+                setFilter(m);
+                setShowAll(true);
+              }}
+              className={`tab-pill whitespace-nowrap ${
+                filter === m ? "tab-pill-active" : "tab-pill-inactive"
               }`}
             >
-              {d}d
+              {m === "all" ? "All" : m.charAt(0).toUpperCase() + m.slice(1)}
             </button>
           ))}
         </div>
+      </div>
 
-        {/* Urge Chart */}
-        <div className="mt-4">
-          <UrgeChart days={duration} />
-        </div>
+      <div className="mt-5 space-y-3">
+        {filtered.map((tech, i) => (
+          <div key={tech.id} style={{ animationDelay: `${i * 0.08}s` }}>
+            <TechniqueCard
+              technique={tech}
+              onLog={handleLog}
+              compact={false}
+            />
+          </div>
+        ))}
+      </div>
 
-        {/* Trend summary */}
-        <div className="mt-3 flex items-center justify-center gap-5 text-xs bg-bg-surface border border-border-primary rounded-xl px-4 py-3 animate-fade-in-up stagger-1">
-          <div className="text-center">
-            <p className="text-lg font-heading font-bold text-text-primary tabular-nums">{trend.average}</p>
-            <p className="text-text-tertiary">7d avg urge</p>
-          </div>
-          <div className="text-center">
-            <p className={`text-lg font-heading font-bold tabular-nums ${trendColor}`}>
-              {trendArrow} {trend.trend === "down" ? "Down" : trend.trend === "up" ? "Up" : "Stable"}
-            </p>
-            <p className="text-text-tertiary">Trend</p>
-          </div>
-          <div className="text-center">
-            <p className="text-lg font-heading font-bold text-text-primary tabular-nums">{trend.peak7d}</p>
-            <p className="text-text-tertiary">Peak (7d)</p>
-          </div>
-          <div className="text-center">
-            <p className="text-lg font-heading font-bold text-text-primary tabular-nums">{trend.logs7d}</p>
-            <p className="text-text-tertiary">Logs (7d)</p>
-          </div>
-        </div>
+      {filter === "all" && !showAll && (
+        <button
+          onClick={() => setShowAll(true)}
+          className="mt-4 py-2.5 rounded-xl text-sm bg-bg-surface text-text-secondary hover:bg-bg-surface-hover border border-border-primary transition-all duration-200"
+        >
+          Show All 10 Techniques
+        </button>
+      )}
 
-        {/* Urge Awareness Score */}
-        {totalUrges > 0 && (
-          <div className="mt-3 bg-bg-surface border border-border-primary rounded-xl px-4 py-4 animate-fade-in-up stagger-2">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm text-text-secondary">Urge Awareness Score</p>
-              <span className={`text-lg font-heading font-bold ${
-                awarenessScore >= 70 ? "text-accent" : awarenessScore >= 40 ? "text-warning" : "text-danger"
-              }`}>
-                {awarenessScore}%
-              </span>
-            </div>
-            <div className="h-2 bg-bg-elevated rounded-full overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-all duration-1000 ${
-                  awarenessScore >= 70 ? "bg-accent" : awarenessScore >= 40 ? "bg-warning" : "bg-danger"
-                }`}
-                style={{ width: `${awarenessScore}%` }}
-              />
-            </div>
-            <p className="text-xs text-text-tertiary mt-2">
-              {resolvedUrges} of {totalUrges} urges logged with a technique that worked
-            </p>
-          </div>
-        )}
+      {filter === "all" && showAll && techniques.length > 3 && (
+        <button
+          onClick={() => setShowAll(false)}
+          className="mt-4 py-2.5 rounded-xl text-sm bg-bg-surface text-text-secondary hover:bg-bg-surface-hover border border-border-primary transition-all duration-200"
+        >
+          Show Recommended
+        </button>
+      )}
+    </>
+  );
+}
 
-        {/* Technique Effectiveness */}
-        {techniqueRanking.length > 0 && (
-          <div className="mt-3 bg-bg-surface border border-border-primary rounded-xl px-4 py-4 animate-fade-in-up stagger-3">
-            <p className="text-sm text-text-secondary mb-3">Technique Effectiveness</p>
-            <div className="space-y-2">
-              {techniqueRanking.slice(0, 5).map((t) => {
-                const maxDrop = Math.max(...techniqueRanking.map((r) => r.avgDrop), 1);
-                const pct = (t.avgDrop / maxDrop) * 100;
-                return (
-                  <div key={t.techniqueId}>
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="text-text-primary font-medium capitalize">{t.techniqueId.replace(/-/g, " ")}</span>
-                      <span className="text-text-tertiary">-{t.avgDrop} pts avg ({t.uses}x)</span>
-                    </div>
-                    <div className="h-1.5 bg-bg-elevated rounded-full overflow-hidden">
-                      <div className="h-full bg-accent rounded-full" style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+export default function InsightsPage() {
+  const { session } = useAuth();
+  const { streak } = useStreak();
+  const [duration, setDuration] = useState<Duration>(7);
+  const [tab, setTab] = useState<InsightTab>("stats");
 
-        {/* Time to Recover */}
-        <div className="mt-3 bg-bg-surface border border-border-primary rounded-xl px-4 py-4 animate-fade-in-up stagger-4">
-          <p className="text-sm text-text-secondary mb-1">Time to Recover</p>
-          <p className={`text-2xl font-heading font-bold tabular-nums ${
-            recoveryTrend.trend === "improving" ? "text-accent" : recoveryTrend.trend === "worsening" ? "text-danger" : "text-text-primary"
-          }`}>
-            {recoveryTrend.avgMinutes > 0 ? `${recoveryTrend.avgMinutes} min` : "—"}
-          </p>
-          <p className="text-xs text-text-tertiary mt-1">
-            {recoveryTrend.trend === "improving"
-              ? "Trend: Improving — you're recovering faster"
-              : recoveryTrend.trend === "worsening"
-              ? "Trend: Worsening — consider trying new techniques"
-              : "Not enough data yet"}
+  if (!session) {
+    return (
+      <div className="flex-1 flex items-center justify-center bg-bg-primary px-6">
+        <p className="text-sm text-text-tertiary">Please sign in to see insights.</p>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div className="flex-1 flex flex-col max-w-lg mx-auto w-full px-5 pt-8 pb-28">
+        <div className="animate-fade-in">
+          <h1 className="text-lg font-heading font-bold text-text-primary">Insights</h1>
+          <p className="text-xs text-text-tertiary mt-0.5">
+            Track patterns and build recovery skills.
           </p>
         </div>
 
-        {/* Best Streak — secondary */}
-        <div className="mt-3 bg-bg-surface border border-border-primary rounded-xl px-4 py-4 animate-fade-in-up stagger-5">
-          <p className="text-sm text-text-secondary mb-1">Best Streak</p>
-          <p className="text-2xl font-heading font-bold text-text-primary tabular-nums">{streak.longest} days</p>
+        {/* Sub-tabs */}
+        <div className="mt-5 flex gap-1 p-1 rounded-xl bg-bg-surface/60 border border-border-primary/50">
+          <button
+            onClick={() => setTab("stats")}
+            className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+              tab === "stats"
+                ? "bg-accent text-black shadow-sm"
+                : "text-text-tertiary hover:text-text-secondary"
+            }`}
+          >
+            Stats
+          </button>
+          <button
+            onClick={() => setTab("techniques")}
+            className={`flex-1 py-2 rounded-lg text-xs font-medium transition-all duration-200 ${
+              tab === "techniques"
+                ? "bg-accent text-black shadow-sm"
+                : "text-text-tertiary hover:text-text-secondary"
+            }`}
+          >
+            Techniques
+          </button>
         </div>
 
-        {/* Empty state */}
-        {totalUrges === 0 && (
-          <div className="mt-6 bg-bg-surface border border-border-primary rounded-xl px-4 py-8 text-center animate-fade-in-up">
-            <p className="text-sm text-text-tertiary">
-              No data yet. Log your first urge on the home screen to start tracking trends.
-            </p>
-          </div>
-        )}
+        <div className="mt-5 space-y-3">
+          {tab === "stats" ? (
+            <StatsView duration={duration} setDuration={setDuration} streak={streak} />
+          ) : (
+            <TechniquesView />
+          )}
+        </div>
       </div>
 
       <Nav />
