@@ -1,9 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import Nav from "@/components/Nav";
 import { useAuth } from "@/hooks/useAuth";
-import { IconStreak, IconCheck, IconAlert } from "@/components/icons";
+import { IconStreak, IconCheck } from "@/components/icons";
+
+const PLANS = [
+  { id: "monthly", label: "Monthly", price: 3.99, period: "/month", desc: "$3.99/mo — cancel anytime" },
+  { id: "yearly", label: "Yearly", price: 19.99, period: "/year", desc: "$19.99/yr — save 58%", save: "Save $27.89/yr vs monthly" },
+  { id: "onetime", label: "One-time", price: 39.99, period: " forever", desc: "Pay once, own forever" },
+];
 
 const features = [
   "AI-Guided Relapse Autopsy with personalized analysis",
@@ -16,30 +21,6 @@ const features = [
 
 export default function PremiumPage() {
   const { session } = useAuth();
-  const [selected, setSelected] = useState<"monthly" | "yearly">("yearly");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleCheckout = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/paddle/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan: selected, userId: session?.user?.id }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.checkoutUrl) {
-        throw new Error(data.error || "Checkout unavailable");
-      }
-      window.open(data.checkoutUrl, "_blank");
-    } catch (err: any) {
-      setError(err.message || "Failed to start checkout");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (!session) {
     return (
@@ -57,47 +38,32 @@ export default function PremiumPage() {
             <IconStreak size={28} className="text-accent" />
           </div>
           <h1 className="text-xl font-heading font-bold text-text-primary">
-            Upgrade Your Recovery
+            Premium — Coming Soon
           </h1>
           <p className="text-sm text-text-secondary mt-1">
-            Unlock personalized insights and AI-powered tools.
+            We're finalising pricing and features. Here's what we're planning.
           </p>
         </div>
 
-        <div className="mt-6 bg-bg-surface border border-border-primary rounded-xl p-1 flex">
-          <button
-            onClick={() => setSelected("monthly")}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-              selected === "monthly"
-                ? "bg-accent text-black"
-                : "text-text-secondary hover:text-text-primary"
-            }`}
-          >
-            Monthly
-          </button>
-          <button
-            onClick={() => setSelected("yearly")}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
-              selected === "yearly"
-                ? "bg-accent text-black"
-                : "text-text-secondary hover:text-text-primary"
-            }`}
-          >
-            Yearly
-            <span className="text-[10px] ml-1 opacity-80">Save 33%</span>
-          </button>
-        </div>
-
-        <div className="mt-4 text-center">
-          <span className="text-3xl font-heading font-bold text-text-primary">
-            ${selected === "monthly" ? "4.99" : "39.99"}
-          </span>
-          <span className="text-sm text-text-tertiary ml-1">
-            /{selected === "monthly" ? "month" : "year"}
-          </span>
-          {selected === "yearly" && (
-            <p className="text-xs text-accent mt-1">Save $19.89/year vs monthly</p>
-          )}
+        <div className="mt-6 space-y-2">
+          {PLANS.map((plan) => (
+            <div
+              key={plan.id}
+              className="flex items-center justify-between bg-bg-surface border border-border-primary rounded-xl px-4 py-3 opacity-70"
+            >
+              <div>
+                <p className="text-sm font-medium text-text-primary">{plan.label}</p>
+                <p className="text-xs text-text-tertiary">{plan.desc}</p>
+              </div>
+              <div className="text-right">
+                <span className="text-sm font-bold text-text-secondary">${plan.price}</span>
+                <span className="text-xs text-text-tertiary ml-0.5">{plan.period}</span>
+                {plan.save && (
+                  <p className="text-[10px] text-accent mt-0.5">{plan.save}</p>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
 
         <div className="mt-6 space-y-3">
@@ -113,29 +79,12 @@ export default function PremiumPage() {
           ))}
         </div>
 
-        {error && (
-          <div className="mt-4 flex items-start gap-2 bg-danger/10 border border-danger/20 rounded-xl px-4 py-3">
-            <IconAlert size={14} className="text-danger shrink-0 mt-0.5" />
-            <p className="text-xs text-danger">{error}</p>
-          </div>
-        )}
-
         <div className="mt-8">
-          <button
-            onClick={handleCheckout}
-            disabled={loading}
-            className="w-full py-3 rounded-xl font-medium text-sm bg-accent text-black hover:bg-accent-hover disabled:opacity-40 transition-all"
-          >
-            {loading ? "Opening checkout..." : `Subscribe — $${selected === "monthly" ? "4.99" : "39.99"}/mo`}
-          </button>
+          <div className="w-full py-3 rounded-xl font-medium text-sm bg-bg-elevated text-text-tertiary text-center border border-border-primary">
+            Coming soon — no payment setup yet
+          </div>
           <p className="text-xs text-text-tertiary text-center mt-2">
-            Secure payment via Paddle. Cancel anytime.
-          </p>
-        </div>
-
-        <div className="mt-6 bg-bg-surface border border-border-primary rounded-xl px-4 py-3">
-          <p className="text-xs text-text-secondary leading-relaxed text-center">
-            The free tier includes the streak counter, encrypted journal, and basic content blocking — no time limits, no tracking.
+            The free tier includes streak counter, encrypted journal, and basic content blocking — no time limits, no tracking.
           </p>
         </div>
       </div>

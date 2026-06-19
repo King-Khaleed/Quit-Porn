@@ -1,0 +1,31 @@
+# QuitPorn
+
+## What Is QuitPorn
+
+QuitPorn is a shame-free, neuroscience-based porn recovery tool. It is completely anonymous — no email, no tracking, no signup required. Everything is encrypted client-side and stored on your device.
+
+## Key Features
+
+- Streak tracking (never resets without your choice)
+- 60-second intervention techniques (box breathing, grounding, cognitive reframing)
+- Encrypted journal (AES-256-GCM with PBKDF2 key derivation)
+- AI Recovery Coach (5 free messages/day via OpenRouter)
+- Trigger pattern detection and prediction
+- Content blocking with pre-commit intervention
+- Anonymous urge feed (7-day TTL)
+- Full backup and export system
+
+## Pricing
+
+Free forever with all core features. Premium features coming soon — estimated pricing:
+- Monthly: $3.99/month
+- Yearly: $19.99/year (save 58%)
+- One-time: $39.99 forever
+
+## Links
+
+- Home: https://quitporn.app
+- Techniques: https://quitporn.app/techniques
+- Blog: https://quitporn.app/blog
+- Pricing: https://quitporn.app/premium
+- Install: https://quitporn.app/install

@@ -52,7 +52,8 @@ export default function SettingsPage() {
   const [showExport, setShowExport] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
-  const premiumExpiry = null; // TODO: fetch from Supabase
+  const [feedbackText, setFeedbackText] = useState("");
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -160,6 +161,23 @@ export default function SettingsPage() {
     if (pushEnabled) return;
     const ok = await subscribeToPush();
     if (ok) setPushEnabled(true);
+  };
+
+  const handleSubmitFeedback = async () => {
+    const text = feedbackText.trim();
+    if (!text) return;
+    setFeedbackSubmitting(true);
+    try {
+      const { getSupabase } = await import("@/lib/supabase");
+      const supabase = getSupabase();
+      await supabase.from("user_feedback").insert({ feedback: text });
+      setFeedbackText("");
+      setMessage({ text: "Feedback sent. Thank you!", type: "success" });
+    } catch {
+      setMessage({ text: "Failed to send feedback. Try again.", type: "error" });
+    } finally {
+      setFeedbackSubmitting(false);
+    }
   };
 
   if (!session) {
@@ -312,16 +330,35 @@ export default function SettingsPage() {
             <div>
               <p className="text-sm text-text-secondary">Status</p>
               <p className="text-xs text-text-tertiary">
-                {premiumExpiry ? "Premium" : "Free"} — signed in anonymously
+                Free — signed in anonymously
               </p>
             </div>
-            <a
-              href={premiumExpiry ? "/premium" : "/premium"}
-              className="text-xs text-accent hover:text-accent-hover transition-colors"
-            >
-              {premiumExpiry ? "Manage" : "Upgrade"}
-            </a>
+            <span className="text-[10px] text-text-tertiary bg-bg-elevated px-2 py-1 rounded-md">
+              Free tier
+            </span>
           </div>
+        </div>
+
+        {/* Feedback */}
+        <div className="mt-4 bg-bg-surface border border-border-primary rounded-xl p-4 animate-fade-in-up stagger-4 space-y-3">
+          <h2 className="text-sm font-heading font-semibold text-text-primary">Send Feedback</h2>
+          <p className="text-xs text-text-tertiary">
+            Help us improve. Bug reports, feature requests, or just saying hi.
+          </p>
+          <textarea
+            value={feedbackText}
+            onChange={(e) => setFeedbackText(e.target.value)}
+            placeholder="Your feedback..."
+            rows={3}
+            className="w-full bg-bg-elevated border border-border-primary rounded-lg px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary/60 focus:outline-none focus:ring-2 focus:ring-accent/40 resize-none"
+          />
+          <button
+            onClick={handleSubmitFeedback}
+            disabled={!feedbackText.trim() || feedbackSubmitting}
+            className="w-full py-2.5 rounded-xl text-sm font-medium bg-accent text-black hover:bg-accent-hover disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+          >
+            {feedbackSubmitting ? "Sending..." : "Send Feedback"}
+          </button>
         </div>
 
         {/* Streak Stats */}

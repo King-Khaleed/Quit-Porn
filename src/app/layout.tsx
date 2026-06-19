@@ -15,15 +15,29 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "QuitPorn – Reclaim Your Life",
+  title: { default: "QuitPorn – Reclaim Your Life", template: "%s | QuitPorn" },
   description:
-    "A shame-free, neuroscience-based recovery tool. No email, no tracking, no judgment. Private, anonymous, and built for real change.",
+    "A shame-free, neuroscience-based porn recovery tool. Anonymous, private, encrypted. Techniques, streak tracking, AI coach, and relapse support — built for real change.",
   manifest: "/manifest.json",
-  robots: "noindex, nofollow",
+  robots: { index: true, follow: true },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "QuitPorn",
+  },
+  openGraph: {
+    title: "QuitPorn – Reclaim Your Life",
+    description:
+      "A shame-free, neuroscience-based porn recovery tool. Anonymous, private, encrypted.",
+    type: "website",
+    siteName: "QuitPorn",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "QuitPorn – Reclaim Your Life",
+    description:
+      "A shame-free, neuroscience-based porn recovery tool. Anonymous, private, encrypted.",
   },
   other: {
     "mobile-web-app-capable": "yes",

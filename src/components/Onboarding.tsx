@@ -8,11 +8,11 @@ interface Props {
 }
 
 const PRICING_OPTIONS = [
-  { id: "weekly", label: "Weekly", price: "$0.99/week", sub: "Cancel anytime" },
-  { id: "monthly", label: "Monthly", price: "$4.99/month", sub: "Most flexible" },
-  { id: "yearly", label: "Yearly", price: "$39.99/year", sub: "Save 33%" },
-  { id: "onetime", label: "One-time", price: "$29.99 forever", sub: "Lifetime access" },
-  { id: "free", label: "Free always", price: "$0", sub: "No commitment" },
+  { id: "weekly", label: "Weekly", price: "$1.99/week", sub: "Flexible, cancel anytime" },
+  { id: "monthly", label: "Monthly", price: "$3.99/month", sub: "Save 50% vs weekly" },
+  { id: "yearly", label: "Yearly", price: "$19.99/year", sub: "Save 58% vs monthly — best value" },
+  { id: "onetime", label: "One-time", price: "$39.99 forever", sub: "Lifetime access, never pay again" },
+  { id: "free", label: "Free always", price: "$0", sub: "No commitment, ever" },
 ];
 
 export default function Onboarding({ onComplete }: Props) {
