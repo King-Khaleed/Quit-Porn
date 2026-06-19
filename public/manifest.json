@@ -1,0 +1,32 @@
+{
+  "name": "QuitPorn – Reclaim Your Life",
+  "short_name": "QuitPorn",
+  "description": "A shame-free, neuroscience-based recovery tool. No email, no tracking, no judgment.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#07070d",
+  "theme_color": "#07070d",
+  "categories": ["health", "lifestyle", "utilities"],
+  "lang": "en",
+  "dir": "ltr",
+  "icons": [
+    { "src": "/icons/icon.svg", "sizes": "48x48", "type": "image/svg+xml" },
+    { "src": "/icons/icon.svg", "sizes": "72x72", "type": "image/svg+xml" },
+    { "src": "/icons/icon.svg", "sizes": "96x96", "type": "image/svg+xml" },
+    { "src": "/icons/icon.svg", "sizes": "128x128", "type": "image/svg+xml" },
+    { "src": "/icons/icon.svg", "sizes": "192x192", "type": "image/svg+xml" },
+    { "src": "/icons/icon.svg", "sizes": "384x384", "type": "image/svg+xml" },
+    { "src": "/icons/icon.svg", "sizes": "512x512", "type": "image/svg+xml" },
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "screenshots": [],
+  "related_applications": [],
+  "prefer_related_applications": false
+}

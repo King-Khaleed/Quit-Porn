@@ -1,0 +1,11 @@
+export { default as IconHome } from "./IconHome";
+export { default as IconJournal } from "./IconJournal";
+export { default as IconAutopsy } from "./IconAutopsy";
+export { default as IconTechniques } from "./IconTechniques";
+export { default as IconInsights } from "./IconInsights";
+export { default as IconStreak } from "./IconStreak";
+export { default as IconRelapse } from "./IconRelapse";
+export { default as IconCheck } from "./IconCheck";
+export { default as IconLogo } from "./IconLogo";
+export { default as IconAlert } from "./IconAlert";
+export { default as IconSettings } from "./IconSettings";
