@@ -43,6 +43,7 @@ export const metadata: Metadata = {
   },
   other: {
     "mobile-web-app-capable": "yes",
+    "google-site-verification": "zvIJiEYmfKERekflP9xpnVxCRJdhI2vjwYbaYGWqK3s",
   },
 };
 
